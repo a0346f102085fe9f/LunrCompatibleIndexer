@@ -70,7 +70,7 @@ Type MiniJSON
 			Node = Node.Following
 		Wend
 		
-		WriteString(Stream, "}~n")
+		WriteString(Stream, "}")
 	End Method
 End Type
 

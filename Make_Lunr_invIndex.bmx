@@ -75,7 +75,7 @@ Documents = Documents[..DocumentCount]
 Print "Performance: " + DocumentCount + " documents parsed in " + (MilliSecs() - StartMS) + "ms"
 StartMS = MilliSecs()
 
-Local Output:TStream = WriteFile("json_v1.js")
+Local Output:TStream = WriteFile("index_v1.1.json")
 
 ' ===== Calculate lunr inverse index and TF tables =====
 Local TermFrequencyIdx:TermFrequencyIndex = New TermFrequencyIndex
@@ -98,30 +98,32 @@ For Local Document:TDocument = EachIn Documents
 Next
 
 
-WriteString(Output, "// Prebaked Lunr Index v1.0~n")
-WriteString(Output, "var z = {}~n")
-WriteString(Output, "search.idx = {}~n")
+WriteString(Output, "{~qinfo~q: ~qPrebaked Lunr Index v1.1~q")
 
-WriteString(Output, "search.idx.invertedIndex = ")
+WriteString(Output, ",~qinvertedIndex~q:")
 InvertedIdx.ToJSON(Output)
 
-WriteString(Output, "search.idx.fieldTermFrequencies = ")
+WriteString(Output, ",~qfieldTermFrequencies~q:")
 TermFrequencyIdx.ToJSON(Output)
 
-WriteString(Output, "search.idx.fieldLengths = ")
+WriteString(Output, ",~qfieldLengths~q:")
 TermCntIdx.ToJSON(Output)
 
 
 
-WriteString(Output, "search.idx.id_to_filename = {")
+WriteString(Output, ",~qid_to_filename~q:{")
 For Local Document:TDocument = EachIn Documents
-	WriteUTF8String(Output, Document.ID + ":~q" + Document.Filename + "~q, ")	
+	WriteUTF8String(Output, "~q" + Document.ID + "~q:~q" + Document.Filename + "~q")
+	
+	If Document.ID < DocumentCount - 1
+		WriteString(Output, ",")
+	End If
 Next
-WriteString(Output, "}~n")
+WriteString(Output, "}")
 
-WriteString(Output, "search.idx.documentCount = " + DocumentCount + "~n")
-WriteString(Output, "search.idx.termIndex = " + InvertedIdx.ID + "~n")
-WriteString(Output, "search.init_lunr_from_prebaked()~n")
+WriteString(Output, ",~qdocumentCount~q:" + DocumentCount)
+WriteString(Output, ",~qtermIndex~q:" + InvertedIdx.ID)
+WriteString(Output, "}")
 
 Print "Performance: " + (StreamPos(Output) / 1024) + " KB of worth of output produced in " + (MilliSecs() - StartMS) + "ms"
 
@@ -195,15 +197,18 @@ Function ProcessFile:Object(Arg:Object)
 		' Parse as UTF-8
 		Local Token:String = String.FromUTF8String(Buffer + TokenOffset)        '.Replace("\", "\\").Replace("~q", "\~q")
 		
+		' Make all lowercase and remove the ' symbols
+		Token = Token.ToLower()
+		
 		' Register into the hashmap
 		' Skip empty strings
 		If Token = "" Then RuntimeError("Preprocessing missed something: an empty string was parsed")
 		
 		' Make all lowercase and pass through the stemmer
-		Local Stem:String = PorterStemmer(Token.ToLower().Replace("'", ""))
+		Local Stem:String = PorterStemmer(Token)
 		
 		' If stemmer annihilated the word, well...
-		If Stem = "" Then RuntimeError("Stemmer destroyed a word")
+		If Stem = "" Then RuntimeError("Stemmer destroyed a word: " + Token)
 		
 		Local Term:TTerm = TTerm( Hashmap[Stem] )
 		

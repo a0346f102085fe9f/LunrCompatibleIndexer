@@ -19,7 +19,7 @@ Type TermFrequencyIndex
 		JSON.EnterSublevel("~qa/" + DocumentID + "~q")
 				
 		For Local Term:String = EachIn Terms.Keys
-			JSON.Add(Term, TTerm(Terms[Term]).Count)
+			JSON.Add("~q" + Term + "~q", TTerm(Terms[Term]).Count)
 		Next
 		
 		JSON.ExitSublevel()

@@ -55,14 +55,14 @@ Type TInvertedIndex
 		For Local Term:String = EachIn Terms.Keys
 			ITerm = TInvIdxTerm( Terms[Term] )
 			
-			JSON.EnterSublevel(Term)
+			JSON.EnterSublevel("~q"+Term+"~q")
 			' JSON.Add("__proto__", "null")
-			JSON.Add("_index", ITerm.ID)
-			JSON.EnterSublevel("a")
+			JSON.Add("~q_index~q", ITerm.ID)
+			JSON.EnterSublevel("~qa~q")
 			' JSON.Add("__proto__", "null")
 					
 			For Local Key:TIntKey = EachIn ITerm.InDocuments.Keys
-				JSON.Add(Key.Value, "z")
+				JSON.Add("~q"+Key.Value+"~q", "0")
 			Next
 			
 			JSON.ExitSublevel()
