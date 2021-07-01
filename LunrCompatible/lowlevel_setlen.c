@@ -11,4 +11,5 @@
 //
 int setlen( BBString *in, int length ) {
 	in->length = length;
+	in->hash = 0;
 }
