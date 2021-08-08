@@ -1,11 +1,8 @@
 Framework BRL.StandardIO
 Import BRL.Map
 
+Import "FasterHashmap.bmx"
 Import "MiniJSON.bmx"
-
-Type TTerm
-	Field Count:Int = 0
-End Type
 
 ' Secondary index that stores each unique term and its occurence count for each Document ID
 Type TermFrequencyIndex
@@ -15,11 +12,11 @@ Type TermFrequencyIndex
 		JSON = New MiniJSON
 	End Method
 	
-	Method Add(DocumentID:Int, Terms:TStringMap)
+	Method Add(DocumentID:Int, Terms:TTermHashmap)
 		JSON.EnterSublevel("~qa/" + DocumentID + "~q")
 				
 		For Local Term:String = EachIn Terms.Keys
-			JSON.Add("~q" + Term + "~q", TTerm(Terms[Term]).Count)
+			JSON.Add("~q" + Term + "~q", Terms[Term].Count)
 		Next
 		
 		JSON.ExitSublevel()

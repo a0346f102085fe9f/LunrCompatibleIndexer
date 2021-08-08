@@ -51,11 +51,21 @@ End Function
 Function IsFineWithJSON(Source:Byte Ptr)
 	Local Symbol:Byte = Source[0]
 	Local Offset:UInt = 0
-	
-	' If the first symbol is a number, then it's not OK
-	If Symbol > 47 And Symbol < 58 Then Return False
+
+
+	' First symbol is not a letter not ok
+	If Not (Symbol > 96 And Symbol < 123) ' Not a lowercase letter
+		If Not (Symbol > 64 And Symbol < 91) ' Not an uppercase letter
+			Return False
+		End If
+	End If
+
 	
 	While Symbol > 0
+		' No control characters allowed
+		If Symbol < 32 Then Return False
+		
+		' No unicode
 		If Symbol > 127 Then Return False
 		
 		If Not (Symbol > 96 And Symbol < 123) ' Not a lowercase letter

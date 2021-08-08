@@ -32,7 +32,7 @@ End Type
 Type TDocument
 	Field Filename:String
 	Field TermsTotal:Int = 0
-	Field Terms:TStringMap
+	Field Terms:TTermHashmap
 	Field ID:Int
 End Type
 '===========================================================================================
@@ -40,10 +40,8 @@ End Type
 Local StartMS:ULong = MilliSecs()
 
 Local Directory:String[] = LoadDir(".")
-Global Documents:TDocument[] = New TDocument[Directory.length]
 
-Global TermsInDocuments:TStringMap = New TStringMap
-Global WriteMutex:TMutex = CreateMutex()
+Global Documents:TDocument[] = New TDocument[Directory.length]
 
 
 Local Task:TTask
@@ -75,7 +73,7 @@ Documents = Documents[..DocumentCount]
 Print "Performance: " + DocumentCount + " documents parsed in " + (MilliSecs() - StartMS) + "ms"
 StartMS = MilliSecs()
 
-Local Output:TStream = WriteFile("index_v1.1.json")
+Local Output:TStream = WriteFile("index_v1.2.json")
 
 ' ===== Calculate lunr inverse index and TF tables =====
 Local TermFrequencyIdx:TermFrequencyIndex = New TermFrequencyIndex
@@ -87,18 +85,24 @@ InvertedIdx.Init()
 TermCntIdx.Init()
 
 For Local Document:TDocument = EachIn Documents
-	Local Hashmap:TStringMap = Document.Terms
+	Local Hashmap:TTermHashmap = Document.Terms
 	
 	TermCntIdx.Add(Document.ID, Document.TermsTotal)
 	TermFrequencyIdx.Add(Document.ID, Hashmap)
 	
-	For Local Key:String = EachIn Hashmap.Keys
-		InvertedIdx.Add(Key, Document.ID)
+	For Local Node:TStringNode = EachIn Hashmap
+		Local Term:String = Node.Key()
+		Local Count:Int = TTerm(Node.Value()).Count
+	
+		InvertedIdx.Add(Term, Document.ID, Count)
 	Next
+	
+	' Free the original hashmap to save some RAM
+	Hashmap.Clear()
 Next
 
 
-WriteString(Output, "{~qinfo~q: ~qPrebaked Lunr Index v1.1~q")
+WriteString(Output, "{~qinfo~q: ~qPrebaked Lunr Index v1.2~q")
 
 WriteString(Output, ",~qinvertedIndex~q:")
 InvertedIdx.ToJSON(Output)
@@ -146,9 +150,7 @@ CloseFile(Output)
 '
 ' Current list of tradeoffs
 ' 1. All unicode leads to trimmer disengagement
-' 2. All tokens with JSON-unfriendly symbols are thrown away
-' 3. JSON-unfriendly EXCEPT the [ ' ] symbol, the [ ' ] is replaced into an empty
-'
+' 2. All tokens that contain control characters (ASCII < 32) or unicode (ASCII > 127) are discarded
 '
 Function ProcessFile:Object(Arg:Object)
 	Local Task:TTask = TTask(Arg)
@@ -179,7 +181,7 @@ Function ProcessFile:Object(Arg:Object)
 	' Tokenize
 	Local Offsets:Int[] = Tokenize(Buffer, Size + 1)
 	
-	Local Hashmap:TStringMap = New TStringMap
+	Local Hashmap:TTermHashmap = New TTermHashmap
 	Local Total:Int = 0
 	
 	For Local TokenOffset:Int = EachIn Offsets
@@ -195,7 +197,7 @@ Function ProcessFile:Object(Arg:Object)
 		If Not IsFineWithJSON(Buffer + TokenOffset) Then Continue
 		
 		' Parse as UTF-8
-		Local Token:String = String.FromUTF8String(Buffer + TokenOffset)        '.Replace("\", "\\").Replace("~q", "\~q")
+		Local Token:String = String.FromUTF8String(Buffer + TokenOffset)
 		
 		' Make all lowercase and remove the ' symbols
 		Token = Token.ToLower()
@@ -210,7 +212,7 @@ Function ProcessFile:Object(Arg:Object)
 		' If stemmer annihilated the word, well...
 		If Stem = "" Then RuntimeError("Stemmer destroyed a word: " + Token)
 		
-		Local Term:TTerm = TTerm( Hashmap[Stem] )
+		Local Term:TTerm = Hashmap[Stem]
 		
 		' Create if doesn't yet exist
 		If Term = Null
@@ -234,10 +236,7 @@ Function ProcessFile:Object(Arg:Object)
 	Document.Terms = Hashmap
 	Document.ID = Task.ID
 	
-	LockMutex(WriteMutex)
 	Documents[Document.ID] = Document
-	
-	UnlockMutex(WriteMutex)
 End Function
 
 
